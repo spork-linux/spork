@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch
 
 from spork.cli import main
+from spork.errors import DebupError
 
 
 class HelpCommandTest(unittest.TestCase):
@@ -76,6 +77,34 @@ class UninstallCommandTest(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         remove.assert_called_once_with("demo", yes=True, package=None, purge=False)
         autoremove.assert_called_once_with(yes=True)
+
+
+class UpdateCommandTest(unittest.TestCase):
+    def test_update_continues_to_index_when_self_update_fails(self) -> None:
+        with (
+            patch("spork.cli.ensure_initial_files"),
+            patch("spork.cli.load_config", return_value={}),
+            patch("spork.cli.set_language"),
+            patch("spork.cli.update_self", side_effect=DebupError("boom")),
+            patch("spork.cli.update_index", return_value={"apps": [{"id": "demo"}]}) as update_index,
+        ):
+            exit_code = main(["update"])
+
+        self.assertEqual(exit_code, 0)
+        update_index.assert_called_once_with(no_bucket_update=False)
+
+    def test_update_stop_on_error_keeps_self_update_failure_fatal(self) -> None:
+        with (
+            patch("spork.cli.ensure_initial_files"),
+            patch("spork.cli.load_config", return_value={}),
+            patch("spork.cli.set_language"),
+            patch("spork.cli.update_self", side_effect=DebupError("boom")),
+            patch("spork.cli.update_index") as update_index,
+        ):
+            exit_code = main(["update", "--stop-on-error"])
+
+        self.assertEqual(exit_code, 1)
+        update_index.assert_not_called()
 
 
 class ListCommandTest(unittest.TestCase):

@@ -1,4 +1,6 @@
+import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 from .common import PackageManager, capture_command, run_command
@@ -26,8 +28,17 @@ class AptPackageManager(PackageManager):
         )
 
     def install_file(self, path: Path) -> None:
-        self.preinstall_file(path)
-        run_command(["sudo", self.install_command, "install", str(path)], "apt 安装失败，请检查上方 apt 输出。")
+        temp_dir = Path(tempfile.mkdtemp(prefix="spork-apt-", dir="/tmp"))
+        try:
+            temp_dir.chmod(0o755)
+            temp_path = temp_dir / path.name
+            shutil.copy2(path, temp_path)
+            temp_path.chmod(0o644)
+
+            self.preinstall_file(temp_path)
+            run_command(["sudo", self.install_command, "install", str(temp_path)], "apt 安装失败，请检查上方 apt 输出。")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
     def remove_plan(self, package: str, purge: bool = False) -> str:
         op = "purge" if purge else "remove"

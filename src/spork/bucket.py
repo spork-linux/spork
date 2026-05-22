@@ -6,6 +6,7 @@ from typing import Any
 from . import paths
 from .config import load_buckets, load_trusted_buckets, now_iso, save_buckets, save_trusted_buckets
 from .errors import BucketError
+from .output import warn
 
 
 def _is_git_source(source: str) -> bool:
@@ -95,7 +96,7 @@ def remove_bucket(name: str, delete_files: bool = False) -> None:
         shutil.rmtree(Path(bucket["path"]), ignore_errors=True)
 
 
-def update_bucket(name: str | None = None) -> list[str]:
+def update_bucket(name: str | None = None, stop_on_error: bool = True) -> list[str]:
     buckets = list_buckets()
     if name:
         buckets = [bucket for bucket in buckets if bucket.get("name") == name]
@@ -104,6 +105,12 @@ def update_bucket(name: str | None = None) -> list[str]:
     updated: list[str] = []
     for bucket in buckets:
         if bucket.get("type") == "git":
-            _run_git(["pull", "--ff-only"], cwd=Path(bucket["path"]))
+            try:
+                _run_git(["pull", "--ff-only"], cwd=Path(bucket["path"]))
+            except BucketError:
+                if stop_on_error:
+                    raise
+                warn(f"bucket {bucket['name']} 更新失败，继续使用本地已有内容。")
+                continue
             updated.append(bucket["name"])
     return updated

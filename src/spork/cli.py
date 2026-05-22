@@ -182,7 +182,12 @@ def dispatch(args: argparse.Namespace) -> None:
             upgrade(None if args.app_id == "*" else args.app_id, yes=args.yes, stop_on_error=args.stop_on_error)
             return
         if not args.no_self_update:
-            update_self()
+            try:
+                update_self()
+            except DebupError as exc:
+                if args.stop_on_error:
+                    raise
+                print(f"警告：{exc}", file=sys.stderr)
         merged = update_index(no_bucket_update=args.no_bucket_update)
         print(f"索引更新完成：{len(merged.get('apps', []))} 个应用。")
     elif args.command == "list":

@@ -20,7 +20,7 @@ def _bucket_apps(bucket: dict[str, Any], target_arch: str) -> list[dict[str, Any
 def update_index(no_bucket_update: bool = False) -> dict[str, Any]:
     config = load_config()
     if config.get("autoUpdateBuckets", True) and not no_bucket_update:
-        update_bucket()
+        update_bucket(stop_on_error=False)
 
     merged_by_id: dict[str, dict[str, Any]] = {}
     ordered_ids: list[str] = []
